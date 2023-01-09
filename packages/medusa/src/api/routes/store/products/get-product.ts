@@ -7,6 +7,8 @@ import {
 } from "../../../../services"
 import { PriceSelectionParams } from "../../../../types/price-selection"
 import { validator } from "../../../../utils/validator"
+import { cleanResponseData } from "../../../../utils/clean-response-data"
+import { IsOptional, IsString } from "class-validator"
 
 /**
  * @oas [get] /products/{id}
@@ -17,6 +19,7 @@ import { validator } from "../../../../utils/validator"
  *   - (path) id=* {string} The id of the Product.
  *   - (query) cart_id {string} The ID of the customer's cart.
  *   - (query) region_id {string} The ID of the region the customer is using. This is helpful to ensure correct prices are retrieved for a region.
+ *   - (query) fields {string} (Comma separated) Which fields should be included in the result.
  *   - in: query
  *     name: currency_code
  *     style: form
@@ -76,7 +79,7 @@ import { validator } from "../../../../utils/validator"
 export default async (req, res) => {
   const { id } = req.params
 
-  const validated = await validator(PriceSelectionParams, req.query)
+  const validated = await validator(StoreGetProductParams, req.query)
 
   const customer_id = req.user?.customer_id
 
@@ -109,5 +112,13 @@ export default async (req, res) => {
     include_discount_prices: true,
   })
 
-  res.json({ product })
+  res.json({
+    product: cleanResponseData(product, req.allowedProperties || []),
+  })
+}
+
+export class StoreGetProductParams extends PriceSelectionParams {
+  @IsString()
+  @IsOptional()
+  fields?: string
 }
