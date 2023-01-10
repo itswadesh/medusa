@@ -1787,7 +1787,7 @@ class CartService extends TransactionBaseService {
 
         // Helpers that either delete a session locally or remotely. Will be used in multiple places below.
         const deleteSessionAppropriately = async (session) => {
-          if (session.is_selected || session.is_initiated) {
+          if (session.is_initiated) {
             return paymentProviderServiceTx.deleteSession(session)
           }
 
@@ -1826,7 +1826,7 @@ class CartService extends TransactionBaseService {
             if (!providerSet.has(session.provider_id)) {
               /**
                * if the provider does not belong to the region then delete the session.
-               * The deletion occurs locally if there is no external data or if it is not selected
+               * The deletion occurs locally if the session is not initiated
                * otherwise the deletion will also occur remotely through the external provider.
                */
 
@@ -1837,8 +1837,6 @@ class CartService extends TransactionBaseService {
              * if the provider belongs to the region then update or delete the session.
              * The update occurs locally if it is not selected
              * otherwise the update will also occur remotely through the external provider.
-             * In case the session is not selected but contains an external provider data, we delete the external provider
-             * session to be in a clean state.
              */
 
             // We are saving the provider id on which the work below will be done. That way,
@@ -1859,21 +1857,8 @@ class CartService extends TransactionBaseService {
               )
             }
 
-            let updatedSession: PaymentSession
-
-            // At this stage the session is not selected. Delete it remotely if there is some
-            // external provider data and create the session locally only. Otherwise, update the existing local session.
-            if (session.is_initiated) {
-              await paymentProviderServiceTx.deleteSession(session)
-              updatedSession = psRepo.create({
-                ...partialPaymentSessionData,
-                provider_id: session.provider_id,
-              })
-            } else {
-              updatedSession = { ...session, amount: total } as PaymentSession
-            }
-
-            return psRepo.save(updatedSession)
+            session.amount = total
+            return psRepo.save(session)
           })
         )
 
