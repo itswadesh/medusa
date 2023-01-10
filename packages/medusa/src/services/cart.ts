@@ -1667,7 +1667,10 @@ class CartService extends TransactionBaseService {
           (s) => s.is_selected
         )
 
-        if (currentlySelectedSession) {
+        if (
+          currentlySelectedSession &&
+          currentlySelectedSession.provider_id !== providerId
+        ) {
           const psRepo = transactionManager.getCustomRepository(
             this.paymentSessionRepository_
           )
@@ -1685,6 +1688,7 @@ class CartService extends TransactionBaseService {
           await psRepo.save(currentlySelectedSession)
         }
 
+        // TODO: keep for now but we will be able to remove it in the future since only one selected session can exists
         const cartPaymentSessionIds = cart.payment_sessions.map((p) => p.id)
         await psRepo.update(
           { id: In(cartPaymentSessionIds) },
@@ -1713,14 +1717,12 @@ class CartService extends TransactionBaseService {
           payment_session_id: paymentSession.id,
         }
 
-        if (paymentSession.is_selected) {
+        if (paymentSession.is_initiated) {
           // update the session remotely
           await this.paymentProviderService_
             .withTransaction(transactionManager)
             .updateSession(paymentSession, sessionInput)
-        }
-
-        if (!paymentSession.is_initiated) {
+        } else {
           // Create the session remotely
           paymentSession = await this.paymentProviderService_
             .withTransaction(transactionManager)
