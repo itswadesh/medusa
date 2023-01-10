@@ -1845,7 +1845,7 @@ class CartService extends TransactionBaseService {
             alreadyConsumedProviderIds.add(session.provider_id)
 
             // Update remotely
-            if (session.is_selected) {
+            if (session.is_selected && session.is_initiated) {
               const paymentSessionInput = {
                 ...partialSessionInput,
                 provider_id: session.provider_id,
@@ -1857,8 +1857,21 @@ class CartService extends TransactionBaseService {
               )
             }
 
-            session.amount = total
-            return psRepo.save(session)
+            let updatedSession: PaymentSession
+
+            // At this stage the session is not selected. Delete it remotely if there is some
+            // external provider data and create the session locally only. Otherwise, update the existing local session.
+            if (session.is_initiated) {
+              await paymentProviderServiceTx.deleteSession(session)
+              updatedSession = psRepo.create({
+                ...partialPaymentSessionData,
+                provider_id: session.provider_id,
+              })
+            } else {
+              updatedSession = { ...session, amount: total } as PaymentSession
+            }
+
+            return psRepo.save(updatedSession)
           })
         )
 
