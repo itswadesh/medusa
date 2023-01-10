@@ -1663,6 +1663,28 @@ class CartService extends TransactionBaseService {
           )
         }
 
+        let currentlySelectedSession = cart.payment_sessions.find(
+          (s) => s.is_selected
+        )
+
+        if (currentlySelectedSession) {
+          const psRepo = transactionManager.getCustomRepository(
+            this.paymentSessionRepository_
+          )
+
+          if (currentlySelectedSession.is_initiated) {
+            await this.paymentProviderService_
+              .withTransaction(transactionManager)
+              .deleteSession(currentlySelectedSession)
+
+            currentlySelectedSession = psRepo.create(currentlySelectedSession)
+          }
+
+          currentlySelectedSession.is_initiated = false
+          currentlySelectedSession.is_selected = false
+          await psRepo.save(currentlySelectedSession)
+        }
+
         const cartPaymentSessionIds = cart.payment_sessions.map((p) => p.id)
         await psRepo.update(
           { id: In(cartPaymentSessionIds) },
